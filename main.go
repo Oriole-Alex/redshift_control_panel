@@ -91,21 +91,21 @@ u.resetBtn = widget.NewButtonWithIcon("Reset to defaults", theme.ViewRefreshIcon
 	// Rounded panel with bg #414141, thin border #373737, and white dividers between items
 	panelInner := container.NewVBox(
 		bright.View(),
-		thinDivider(color.White),
+		thinDivider(color.NRGBA{R: 0x64, G: 0x64, B: 0x64, A: 0xFF}), // thin white divider with some transparency
 		temp.View(),
-		thinDivider(color.White),
+		thinDivider(color.NRGBA{R: 0x64, G: 0x64, B: 0x64, A: 0xFF}),
 		gamma.View(),
 	)
-	panelPadded := container.NewPadded(panelInner)
+	panelPadded := inset(panelInner, 10, 10, 10, 10)
 
 	panelBG := newRoundRect(
 		color.NRGBA{R: 0x41, G: 0x41, B: 0x41, A: 0xFF}, // fill #414141
 		color.NRGBA{R: 0x37, G: 0x37, B: 0x37, A: 0xFF}, // stroke #373737
 		1.0,                                              // stroke width
-		10,                                               // corner radius
+		15,                                               // corner radius
 	)
 
-	settingsPanel := container.NewMax(panelBG, panelPadded)
+	settingsPanel := container.NewStack(panelBG, panelPadded)
 
 	// ----- Page content -----
 	w.SetContent(container.NewVBox(
@@ -193,24 +193,41 @@ func (u *uiState) reset() {
 
 // thinDivider returns a full-width thin horizontal line with the given color.
 func thinDivider(c color.Color) *fyne.Container {
-	r := canvas.NewRectangle(c)
-	r.SetMinSize(fyne.NewSize(0, 1)) // thin
-	return container.NewMax(r)       // expand to full width
+    line := canvas.NewRectangle(c)
+    line.SetMinSize(fyne.NewSize(0, 2)) // 1px high line
+
+    const pad float32 = 0 // if want to add horizontal padding
+    left := canvas.NewRectangle(color.Transparent)
+    left.SetMinSize(fyne.NewSize(pad, 1))
+    right := canvas.NewRectangle(color.Transparent)
+    right.SetMinSize(fyne.NewSize(pad, 1))
+
+    // Center expands to the remaining width between left/right
+    return container.NewBorder(nil, nil, left, right, line)
 }
+
 
 // newRoundRect builds a rounded rectangle canvas object with fill, stroke and radius.
 // It expands automatically inside a container.NewMax(...).
 func newRoundRect(fill, stroke color.Color, strokeWidth float32, radius float32) *canvas.Rectangle {
 	r := canvas.NewRectangle(fill)
-	// If your Fyne version supports rounded corners on Rectangle:
-	// r.CornerRadius = radius
-	// Otherwise, change to canvas.NewRoundedRectangle(...) if available in your Fyne version.
 	r.StrokeColor = stroke
 	r.StrokeWidth = strokeWidth
-	// Best effort: if CornerRadius is supported, set it via a type assertion that won’t panic on older versions.
-	type cornerable interface{ SetCornerRadius(float32) }
-	if cr, ok := any(r).(cornerable); ok {
-		cr.SetCornerRadius(radius)
-	}
+	r.CornerRadius = radius
 	return r
+}
+
+func inset(obj fyne.CanvasObject, top, right, bottom, left float32) *fyne.Container {
+    spacer := func(w, h float32) fyne.CanvasObject {
+        r := canvas.NewRectangle(color.Transparent)
+        r.SetMinSize(fyne.NewSize(w, h))
+        return r
+    }
+    return container.NewBorder(
+        spacer(0, top),    // top
+        spacer(0, bottom), // bottom
+        spacer(left, 0),   // left
+        spacer(right, 0),  // right
+        obj,
+    )
 }
